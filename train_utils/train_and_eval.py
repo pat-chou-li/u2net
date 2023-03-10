@@ -3,7 +3,7 @@ import torch
 from torch.nn import functional as F
 import train_utils.distributed_utils as utils
 
-
+# 计算loss，这里的target是gt
 def criterion(inputs, target):
     losses = [F.binary_cross_entropy_with_logits(inputs[i], target) for i in range(len(inputs))]
     total_loss = sum(losses)

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from PIL import Image
 from torchvision.transforms import transforms
 
 from src import u2net_full
@@ -57,9 +58,19 @@ def main():
         t_end = time_synchronized()
         print("inference time: {}".format(t_end - t_start))
         pred = torch.squeeze(pred).to("cpu").numpy()  # [1, 1, H, W] -> [H, W]
-
         pred = cv2.resize(pred, dsize=(w, h), interpolation=cv2.INTER_LINEAR)
         pred_mask = np.where(pred > threshold, 1, 0)
+        # 生成二分类图
+        tmp = np.zeros((pred_mask.shape[0], pred_mask.shape[1], 3),dtype=np.uint8)
+        for height in range(0,tmp.shape[0]):
+            for width in range(0,tmp.shape[1]):
+                if pred_mask[height][width] == 0:
+                    tmp[height][width] = [0,0,0]
+                else:
+                    tmp[height][width] = [255,255,255]
+        result_img = Image.fromarray(tmp)
+        result_img.save("pred_result_b.png")
+        # 生成结果图
         origin_img = np.array(origin_img, dtype=np.uint8)
         seg_img = origin_img * pred_mask[..., None]
         plt.imshow(seg_img)

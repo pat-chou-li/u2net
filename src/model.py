@@ -106,20 +106,26 @@ class RSU4F(nn.Module):
 
 
 class U2Net(nn.Module):
+    # sod是一个二分类任务，输出通道只需要1
     def __init__(self, cfg: dict, out_ch: int = 1):
         super().__init__()
         assert "encode" in cfg
         assert "decode" in cfg
         self.encode_num = len(cfg["encode"])
-
+        #字面意思，但list中一个item就是一个RSU
         encode_list = []
+        #这个是3*3的卷积层，每个都要输出特征图
         side_list = []
         for c in cfg["encode"]:
             # c: [height, in_ch, mid_ch, out_ch, RSU4F, side]
             assert len(c) == 6
+            #构造RSU or RSU4F，解构赋值
             encode_list.append(RSU(*c[:4]) if c[4] is False else RSU4F(*c[1:4]))
-
+            #构造side or not
             if c[5] is True:
+                #encode层中，只有最底下那层需要采集输出，将此输出输入到一个3*3卷积，并且out_ch为1，生成一个二分类分割图
+                #这是6个分割图中最底下的那个
+                #注意3*3卷积+padding=1 不改变hw
                 side_list.append(nn.Conv2d(c[3], out_ch, kernel_size=3, padding=1))
         self.encode_modules = nn.ModuleList(encode_list)
 
@@ -128,11 +134,12 @@ class U2Net(nn.Module):
             # c: [height, in_ch, mid_ch, out_ch, RSU4F, side]
             assert len(c) == 6
             decode_list.append(RSU(*c[:4]) if c[4] is False else RSU4F(*c[1:4]))
-
+            #对应的，decode层每层都要输出一个分割图
             if c[5] is True:
                 side_list.append(nn.Conv2d(c[3], out_ch, kernel_size=3, padding=1))
         self.decode_modules = nn.ModuleList(decode_list)
         self.side_modules = nn.ModuleList(side_list)
+        #最后将6层分割图通过1*1卷积融合成最终结果
         self.out_conv = nn.Conv2d(self.encode_num * out_ch, out_ch, kernel_size=1)
 
     def forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
@@ -141,8 +148,11 @@ class U2Net(nn.Module):
         # collect encode outputs
         encode_outputs = []
         for i, m in enumerate(self.encode_modules):
+            #遍历每个encode模块并输出到下层
             x = m(x)
+            #存储encode输出便于跳跃链接
             encode_outputs.append(x)
+            #最后一层没有下采样
             if i != self.encode_num - 1:
                 x = F.max_pool2d(x, kernel_size=2, stride=2, ceil_mode=True)
 
@@ -151,21 +161,26 @@ class U2Net(nn.Module):
         decode_outputs = [x]
         for m in self.decode_modules:
             x2 = encode_outputs.pop()
+            # 通过双线性插值上采样
             x = F.interpolate(x, size=x2.shape[2:], mode='bilinear', align_corners=False)
             x = m(torch.concat([x, x2], dim=1))
+            # 前插入，结束后列表中的输出来源于decode1,2...5，encode6
             decode_outputs.insert(0, x)
 
         # collect side outputs
         side_outputs = []
         for m in self.side_modules:
             x = decode_outputs.pop()
+            # 直接将decode的输出通过双线性插值还原成原来的大小
             x = F.interpolate(m(x), size=[h, w], mode='bilinear', align_corners=False)
+            # 收集side的输出，最后要融合
             side_outputs.insert(0, x)
-
+        #融合
         x = self.out_conv(torch.concat(side_outputs, dim=1))
-
+        
         if self.training:
             # do not use torch.sigmoid for amp safe
+            # [x]: 融合后的特征图， side_outputs 6个融合前的特征图， 这些都要用来计算loss
             return [x] + side_outputs
         else:
             return torch.sigmoid(x)
