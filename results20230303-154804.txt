@@ -1,0 +1,1 @@
+[epoch: 0] train_loss: 2.5527 lr: 0.000500 MAE: 0.226 maxF1: 0.580 
