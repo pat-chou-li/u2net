@@ -87,7 +87,7 @@ class RSU4F(nn.Module):
         self.decode_modules = nn.ModuleList([ConvBNReLU(mid_ch * 2, mid_ch, dilation=4),
                                              ConvBNReLU(mid_ch * 2, mid_ch, dilation=2),
                                              ConvBNReLU(mid_ch * 2, out_ch)])
-
+# 同样通过栈实现跳跃链接
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x_in = self.conv_in(x)
 
