@@ -125,6 +125,7 @@ class U2Net(nn.Module):
             if c[5] is True:
                 #encode层中，只有最底下那层需要采集输出，将此输出输入到一个3*3卷积，并且out_ch为1，生成一个二分类分割图
                 #这是6个分割图中最底下的那个
+                #注意3*3卷积+padding=1 不改变hw
                 side_list.append(nn.Conv2d(c[3], out_ch, kernel_size=3, padding=1))
         self.encode_modules = nn.ModuleList(encode_list)
 
@@ -244,5 +245,6 @@ if __name__ == '__main__':
     # n_m = RSU4F(in_ch=3, mid_ch=12, out_ch=3)
     # convert_onnx(n_m, "RSU4F.onnx")
 
-    u2net = u2net_full()
+    # u2net = u2net_full()
+    u2net = u2net_lite()
     convert_onnx(u2net, "u2net_full.onnx")

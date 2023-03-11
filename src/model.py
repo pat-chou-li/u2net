@@ -245,5 +245,6 @@ if __name__ == '__main__':
     # n_m = RSU4F(in_ch=3, mid_ch=12, out_ch=3)
     # convert_onnx(n_m, "RSU4F.onnx")
 
-    u2net = u2net_full()
+    # u2net = u2net_full()
+    u2net = u2net_lite()
     convert_onnx(u2net, "u2net_full.onnx")

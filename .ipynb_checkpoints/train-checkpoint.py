@@ -7,11 +7,12 @@ import torch
 from torch.utils import data
 
 from src import u2net_full
+from src import u2net_lite
 from train_utils import train_one_epoch, evaluate, get_params_groups, create_lr_scheduler
 from my_dataset import DUTSDataset
 import transforms as T
 
-
+# 对训练集做预处理，包括数据增强等
 class SODPresetTrain:
     def __init__(self, base_size: Union[int, List[int]], crop_size: int,
                  hflip_prob=0.5, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
@@ -26,7 +27,7 @@ class SODPresetTrain:
     def __call__(self, img, target):
         return self.transforms(img, target)
 
-
+# 对验证集做预处理
 class SODPresetEval:
     def __init__(self, base_size: Union[int, List[int]], mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
         self.transforms = T.Compose([
@@ -63,7 +64,8 @@ def main(args):
                                       pin_memory=True,
                                       collate_fn=val_dataset.collate_fn)
 
-    model = u2net_full()
+    #model = u2net_full()
+    model = u2net_lite()
     model.to(device)
 
     params_group = get_params_groups(model, weight_decay=args.weight_decay)
@@ -133,7 +135,7 @@ def parse_args():
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-    parser.add_argument("--epochs", default=10, type=int, metavar="N",
+    parser.add_argument("--epochs", default=360, type=int, metavar="N",
                         help="number of total epochs to train")
     parser.add_argument("--eval-interval", default=10, type=int, help="validation interval default 10 Epochs")
 
