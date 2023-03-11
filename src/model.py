@@ -3,6 +3,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class Attn(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(Attn, self).__init__()
+        assert channel % reduction == 0, "channel must be mutil reduction" 
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            # nn.ELU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
+class RefineModule(nn.Module):
+    def __init__(self, channel, out):
+        super(RefineModule, self).__init__()
+        self.attn = Attn(256)
+        self.conv_up = nn.Conv2d(channel, 256, 3, 1, 1)
+        self.conv_dn = nn.Conv2d(256, out, 3, 1, 1)
+        self.relu1 = nn.ReLU(inplace=True)
+        # self.relu1 = nn.ELU(inplace=True)
+
+    def forward(self, x):
+        x = self.conv_up(x)
+        x = self.relu1(x)
+        x = self.attn(x)
+        x = self.conv_dn(x)
+        return x 
+
 # 卷积 + batchnormalization + Relu
 class ConvBNReLU(nn.Module):
     def __init__(self, in_ch: int, out_ch: int, kernel_size: int = 3, dilation: int = 1):
@@ -140,7 +175,9 @@ class U2Net(nn.Module):
         self.decode_modules = nn.ModuleList(decode_list)
         self.side_modules = nn.ModuleList(side_list)
         #最后将6层分割图通过1*1卷积融合成最终结果
-        self.out_conv = nn.Conv2d(self.encode_num * out_ch, out_ch, kernel_size=1)
+        #我将要在这里做注意力机制
+        #self.out_conv = nn.Conv2d(self.encode_num * out_ch, out_ch, kernel_size=1)
+        self.out_conv = RefineModule(self.encode_num * out_ch, out_ch)
 
     def forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
         _, _, h, w = x.shape
