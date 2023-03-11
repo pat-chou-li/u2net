@@ -12,7 +12,7 @@ from train_utils import train_one_epoch, evaluate, get_params_groups, create_lr_
 from my_dataset import DUTSDataset
 import transforms as T
 
-# 对训练集做预处理，包括数据增强等
+# 对训练集做预处理，包括数据增强等等
 class SODPresetTrain:
     def __init__(self, base_size: Union[int, List[int]], crop_size: int,
                  hflip_prob=0.5, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
