@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-    parser.add_argument("--epochs", default=360, type=int, metavar="N",
+    parser.add_argument("--epochs", default=720, type=int, metavar="N",
                         help="number of total epochs to train")
     parser.add_argument("--eval-interval", default=10, type=int, help="validation interval default 10 Epochs")
 
